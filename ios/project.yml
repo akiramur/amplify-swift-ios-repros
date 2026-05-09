@@ -17,9 +17,6 @@ targets:
     deploymentTarget: "17.0"
     sources:
       - path: App
-    resources:
-      - path: ../amplify_outputs.json
-        optional: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.example.amplifyswiftreprolab
@@ -35,6 +32,25 @@ targets:
         product: AWSCognitoAuthPlugin
       - package: Amplify
         product: AWSAPIPlugin
+    preBuildScripts:
+      - name: Copy amplify_outputs.json
+        script: |
+          set -euo pipefail
+          SOURCE_FILE="${PROJECT_DIR}/../amplify_outputs.json"
+          DEST_DIR="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}"
+          DEST_FILE="${DEST_DIR}/amplify_outputs.json"
+
+          if [ ! -f "${SOURCE_FILE}" ]; then
+            echo "error: Missing amplify_outputs.json at ${SOURCE_FILE}. Run 'npx ampx sandbox' from the repo root first."
+            exit 1
+          fi
+
+          mkdir -p "${DEST_DIR}"
+          cp "${SOURCE_FILE}" "${DEST_FILE}"
+        inputFiles:
+          - $(PROJECT_DIR)/../amplify_outputs.json
+        outputFiles:
+          - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/amplify_outputs.json
     info:
       path: App/Info.plist
       properties:

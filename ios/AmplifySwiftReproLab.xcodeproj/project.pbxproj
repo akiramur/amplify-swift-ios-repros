@@ -74,6 +74,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 8663D7950E89A963E63AB15F /* Build configuration list for PBXNativeTarget "AmplifySwiftReproLab" */;
 			buildPhases = (
+				38A2E96C5025FF344B4C5476 /* Copy amplify_outputs.json */,
 				40FA2D87E4C840554BAD2C01 /* Sources */,
 				071BCF6C5945E891DF1536C7 /* Resources */,
 				536DE55C288215522E0FFA88 /* Frameworks */,
@@ -136,6 +137,29 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		38A2E96C5025FF344B4C5476 /* Copy amplify_outputs.json */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(PROJECT_DIR)/../amplify_outputs.json",
+			);
+			name = "Copy amplify_outputs.json";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/amplify_outputs.json",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -euo pipefail\nSOURCE_FILE=\"${PROJECT_DIR}/../amplify_outputs.json\"\nDEST_DIR=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}\"\nDEST_FILE=\"${DEST_DIR}/amplify_outputs.json\"\n\nif [ ! -f \"${SOURCE_FILE}\" ]; then\n  echo \"error: Missing amplify_outputs.json at ${SOURCE_FILE}. Run 'npx ampx sandbox' from the repo root first.\"\n  exit 1\nfi\n\nmkdir -p \"${DEST_DIR}\"\ncp \"${SOURCE_FILE}\" \"${DEST_FILE}\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		40FA2D87E4C840554BAD2C01 /* Sources */ = {
