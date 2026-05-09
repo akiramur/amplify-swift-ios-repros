@@ -40,6 +40,9 @@ final class SubscriptionProbeStore: ObservableObject {
     private var subscriptionTask: Task<Void, Never>?
     private var watchdogTask: Task<Void, Never>?
     private var authHubToken: UnsubscribeToken?
+    private var currentScenePhaseLabel = "uninitialized"
+    private var subscriptionAttempt = 0
+    private var activeSubscriptionAttempt: Int?
 
     private let deviceLabel = UIDevice.current.name
 
@@ -56,6 +59,7 @@ final class SubscriptionProbeStore: ObservableObject {
     }
 
     func handleScenePhase(_ phase: ScenePhase) async {
+        currentScenePhaseLabel = phase.logLabel
         switch phase {
         case .active:
             appendLog("scenePhase=active")
@@ -238,6 +242,9 @@ final class SubscriptionProbeStore: ObservableObject {
 
         stopSubscription(reason: "prestart-\(reason)")
         restartRequiredMessage = nil
+        subscriptionAttempt += 1
+        let attempt = subscriptionAttempt
+        activeSubscriptionAttempt = attempt
 
         let document = """
         subscription OnCreateReproItem {
@@ -252,7 +259,7 @@ final class SubscriptionProbeStore: ObservableObject {
         }
         """
 
-        appendLog("subscription start reason=\(reason)")
+        appendLog("subscription start attempt=\(attempt) reason=\(reason) scene=\(currentScenePhaseLabel)")
         let request = GraphQLRequest<ReproItem>(
             document: document,
             responseType: ReproItem.self,
@@ -262,7 +269,7 @@ final class SubscriptionProbeStore: ObservableObject {
         let sequence = Amplify.API.subscribe(request: request)
         subscription = sequence
         connectionState = .connecting
-        startWatchdog(context: reason)
+        startWatchdog(context: "attempt=\(attempt) reason=\(reason) scene=\(currentScenePhaseLabel)")
 
         subscriptionTask = Task { [weak self] in
             guard let self else { return }
@@ -272,7 +279,7 @@ final class SubscriptionProbeStore: ObservableObject {
                     switch event {
                     case .connection(let state):
                         self.connectionState = state
-                        self.appendLog("subscription connection \(state)")
+                        self.appendLog("subscription connection attempt=\(attempt) state=\(state)")
                         if state == .connected {
                             self.watchdogTask?.cancel()
                             self.watchdogTask = nil
@@ -280,31 +287,44 @@ final class SubscriptionProbeStore: ObservableObject {
                     case .data(let result):
                         switch result {
                         case .success(let item):
-                            self.appendLog("subscription data id=\(item.id)")
+                            self.appendLog("subscription data attempt=\(attempt) id=\(item.id)")
                             self.items.removeAll { $0.id == item.id }
                             self.items.insert(item, at: 0)
                         case .failure(let error):
-                            self.appendLog("subscription data failure \(error.localizedDescription)")
+                            self.appendLog("subscription data failure attempt=\(attempt) \(error.localizedDescription)")
                         }
                     }
                 }
-                self.appendLog("subscription loop ended")
+                self.appendLog("subscription loop ended attempt=\(attempt)")
+                if self.activeSubscriptionAttempt == attempt {
+                    self.activeSubscriptionAttempt = nil
+                }
+                self.connectionState = .disconnected
+            } catch is CancellationError {
+                self.appendLog("subscription cancelled attempt=\(attempt)")
+                if self.activeSubscriptionAttempt == attempt {
+                    self.activeSubscriptionAttempt = nil
+                }
                 self.connectionState = .disconnected
             } catch {
-                self.appendLog("subscription throw \(error.localizedDescription)")
+                self.appendLog("subscription throw attempt=\(attempt) \(error.localizedDescription)")
+                if self.activeSubscriptionAttempt == attempt {
+                    self.activeSubscriptionAttempt = nil
+                }
                 self.connectionState = .disconnected
             }
         }
     }
 
     private func stopSubscription(reason: String) {
-        appendLog("subscription stop reason=\(reason)")
+        appendLog("subscription stop attempt=\(activeSubscriptionAttempt.map(String.init) ?? "none") reason=\(reason) scene=\(currentScenePhaseLabel)")
         watchdogTask?.cancel()
         watchdogTask = nil
         subscription?.cancel()
         subscription = nil
         subscriptionTask?.cancel()
         subscriptionTask = nil
+        activeSubscriptionAttempt = nil
         connectionState = .disconnected
     }
 
@@ -354,6 +374,21 @@ final class SubscriptionProbeStore: ObservableObject {
                     break
                 }
             }
+        }
+    }
+}
+
+private extension ScenePhase {
+    var logLabel: String {
+        switch self {
+        case .active:
+            return "active"
+        case .inactive:
+            return "inactive"
+        case .background:
+            return "background"
+        @unknown default:
+            return "unknown"
         }
     }
 }
