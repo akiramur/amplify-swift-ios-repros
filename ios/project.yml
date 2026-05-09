@@ -1,0 +1,51 @@
+name: AmplifySwiftReproLab
+options:
+  createIntermediateGroups: true
+packages:
+  Amplify:
+    url: https://github.com/aws-amplify/amplify-swift
+    from: 2.58.1
+settings:
+  base:
+    SWIFT_VERSION: 5.9
+    MARKETING_VERSION: 1.0
+    CURRENT_PROJECT_VERSION: 1
+targets:
+  AmplifySwiftReproLab:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: App
+    resources:
+      - path: ../amplify_outputs.json
+        optional: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.amplifyswiftreprolab
+        PRODUCT_NAME: AmplifySwiftReproLab
+        INFOPLIST_FILE: App/Info.plist
+        CODE_SIGN_STYLE: Automatic
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        DEVELOPMENT_ASSET_PATHS: "\"App/Preview Content\""
+    dependencies:
+      - package: Amplify
+        product: Amplify
+      - package: Amplify
+        product: AWSCognitoAuthPlugin
+      - package: Amplify
+        product: AWSAPIPlugin
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: AmplifySwiftReproLab
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        CFBundleURLTypes:
+          - CFBundleURLName: amplify-swift-repro-lab
+            CFBundleURLSchemes:
+              - amplifyswiftreprolab
+scheme:
+  gatherCoverageData: false

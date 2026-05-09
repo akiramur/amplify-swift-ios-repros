@@ -1,0 +1,370 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 54;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		4694C5323A93FADC23553453 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1C9F2F48F4139CE016B0B1A /* Assets.xcassets */; };
+		7649BE49A2F6EF50D981F927 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F998DE04FC17CBD6E32F69 /* ContentView.swift */; };
+		7C6F2D5E3F76A596D3552D55 /* AWSCognitoAuthPlugin in Frameworks */ = {isa = PBXBuildFile; productRef = 1B1B1E051F3284AA1985A46E /* AWSCognitoAuthPlugin */; };
+		80E574C64D995057BD5EE456 /* AWSAPIPlugin in Frameworks */ = {isa = PBXBuildFile; productRef = 21E3BD1EBC50E80620B0D97F /* AWSAPIPlugin */; };
+		E3532D0F8B862E2D6B70CFA8 /* SubscriptionProbeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 236ECADA5ADE0BEBC3A31F5D /* SubscriptionProbeStore.swift */; };
+		E50EA974241D0C27CE138F04 /* AmplifySwiftReproLabApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2DB457F0A5C733E02B932FB /* AmplifySwiftReproLabApp.swift */; };
+		FB7067CC587131F7AE59501C /* Amplify in Frameworks */ = {isa = PBXBuildFile; productRef = 951A4E8C5C8A4FD62035A2B6 /* Amplify */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		20FEC732DBDB38F34D901503 /* AmplifySwiftReproLab.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = AmplifySwiftReproLab.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		21FFDC2613EE89A956D67363 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		236ECADA5ADE0BEBC3A31F5D /* SubscriptionProbeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionProbeStore.swift; sourceTree = "<group>"; };
+		A1C9F2F48F4139CE016B0B1A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		F1F998DE04FC17CBD6E32F69 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		F2DB457F0A5C733E02B932FB /* AmplifySwiftReproLabApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AmplifySwiftReproLabApp.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		536DE55C288215522E0FFA88 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FB7067CC587131F7AE59501C /* Amplify in Frameworks */,
+				7C6F2D5E3F76A596D3552D55 /* AWSCognitoAuthPlugin in Frameworks */,
+				80E574C64D995057BD5EE456 /* AWSAPIPlugin in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		AEC4EC3DD76F5303285EC7B9 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				20FEC732DBDB38F34D901503 /* AmplifySwiftReproLab.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		CBED0ECFEAFE244AF146EBEA /* App */ = {
+			isa = PBXGroup;
+			children = (
+				F2DB457F0A5C733E02B932FB /* AmplifySwiftReproLabApp.swift */,
+				A1C9F2F48F4139CE016B0B1A /* Assets.xcassets */,
+				F1F998DE04FC17CBD6E32F69 /* ContentView.swift */,
+				21FFDC2613EE89A956D67363 /* Info.plist */,
+				236ECADA5ADE0BEBC3A31F5D /* SubscriptionProbeStore.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		EBF591EA844AEC2EEBB72F54 = {
+			isa = PBXGroup;
+			children = (
+				CBED0ECFEAFE244AF146EBEA /* App */,
+				AEC4EC3DD76F5303285EC7B9 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A8B295AB9065348DBB5B6114 /* AmplifySwiftReproLab */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8663D7950E89A963E63AB15F /* Build configuration list for PBXNativeTarget "AmplifySwiftReproLab" */;
+			buildPhases = (
+				40FA2D87E4C840554BAD2C01 /* Sources */,
+				071BCF6C5945E891DF1536C7 /* Resources */,
+				536DE55C288215522E0FFA88 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AmplifySwiftReproLab;
+			packageProductDependencies = (
+				951A4E8C5C8A4FD62035A2B6 /* Amplify */,
+				1B1B1E051F3284AA1985A46E /* AWSCognitoAuthPlugin */,
+				21E3BD1EBC50E80620B0D97F /* AWSAPIPlugin */,
+			);
+			productName = AmplifySwiftReproLab;
+			productReference = 20FEC732DBDB38F34D901503 /* AmplifySwiftReproLab.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		0EE401F8CDC8C628A33E8306 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					A8B295AB9065348DBB5B6114 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = DEBD9E70B450F301C8F4C0E8 /* Build configuration list for PBXProject "AmplifySwiftReproLab" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = EBF591EA844AEC2EEBB72F54;
+			packageReferences = (
+				AD01158F31BB341C56E38045 /* XCRemoteSwiftPackageReference "amplify-swift" */,
+			);
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A8B295AB9065348DBB5B6114 /* AmplifySwiftReproLab */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		071BCF6C5945E891DF1536C7 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4694C5323A93FADC23553453 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		40FA2D87E4C840554BAD2C01 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E50EA974241D0C27CE138F04 /* AmplifySwiftReproLabApp.swift in Sources */,
+				7649BE49A2F6EF50D981F927 /* ContentView.swift in Sources */,
+				E3532D0F8B862E2D6B70CFA8 /* SubscriptionProbeStore.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		42C98CBD3CD5102AF4B6432C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
+		44631F63DF52E4D8CAB4D616 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_ASSET_PATHS = "\"App/Preview Content\"";
+				INFOPLIST_FILE = App/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.amplifyswiftreprolab;
+				PRODUCT_NAME = AmplifySwiftReproLab;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		4A4A1EF655B680F860F0EFDE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
+		AE1454003823A643B79D38E6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_ASSET_PATHS = "\"App/Preview Content\"";
+				INFOPLIST_FILE = App/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.amplifyswiftreprolab;
+				PRODUCT_NAME = AmplifySwiftReproLab;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		8663D7950E89A963E63AB15F /* Build configuration list for PBXNativeTarget "AmplifySwiftReproLab" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				44631F63DF52E4D8CAB4D616 /* Debug */,
+				AE1454003823A643B79D38E6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		DEBD9E70B450F301C8F4C0E8 /* Build configuration list for PBXProject "AmplifySwiftReproLab" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				42C98CBD3CD5102AF4B6432C /* Debug */,
+				4A4A1EF655B680F860F0EFDE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		AD01158F31BB341C56E38045 /* XCRemoteSwiftPackageReference "amplify-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/aws-amplify/amplify-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.58.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		1B1B1E051F3284AA1985A46E /* AWSCognitoAuthPlugin */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AD01158F31BB341C56E38045 /* XCRemoteSwiftPackageReference "amplify-swift" */;
+			productName = AWSCognitoAuthPlugin;
+		};
+		21E3BD1EBC50E80620B0D97F /* AWSAPIPlugin */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AD01158F31BB341C56E38045 /* XCRemoteSwiftPackageReference "amplify-swift" */;
+			productName = AWSAPIPlugin;
+		};
+		951A4E8C5C8A4FD62035A2B6 /* Amplify */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AD01158F31BB341C56E38045 /* XCRemoteSwiftPackageReference "amplify-swift" */;
+			productName = Amplify;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 0EE401F8CDC8C628A33E8306 /* Project object */;
+}
