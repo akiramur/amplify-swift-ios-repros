@@ -65,7 +65,7 @@ struct ContentView: View {
                     }
                     .buttonStyle(.bordered)
 
-                    Button("Restart Subscription") {
+                    Button("Restart Subscriptions") {
                         Task { await store.restartSubscription(reason: "manual") }
                     }
                     .buttonStyle(.bordered)
@@ -74,6 +74,35 @@ struct ContentView: View {
                         Task { await store.createProbeItem() }
                     }
                     .buttonStyle(.borderedProminent)
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Subscription Workers")
+                        .font(.headline)
+
+                    ForEach(store.workerSnapshots) { worker in
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Text(worker.label)
+                                    .font(.subheadline.monospaced().weight(.semibold))
+                                Spacer()
+                                Text(worker.state.label)
+                                    .font(.caption.monospaced().weight(.semibold))
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .background(worker.state.color.opacity(0.18))
+                                    .foregroundStyle(worker.state.color)
+                                    .clipShape(Capsule())
+                            }
+
+                            Text("attempt \(worker.attempt)  \(worker.lastEvent)")
+                                .font(.caption.monospaced())
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(12)
+                        .background(Color(uiColor: .secondarySystemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
                 }
 
                 VStack(alignment: .leading, spacing: 8) {

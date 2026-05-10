@@ -1,5 +1,4 @@
 import Amplify
-import AWSCognitoAuthPlugin
 import Foundation
 import SwiftUI
 import UIKit
@@ -15,6 +14,14 @@ final class SubscriptionProbeStore: ObservableObject {
         let __typename: String?
     }
 
+    struct WorkerSnapshot: Identifiable {
+        let id: String
+        let label: String
+        let attempt: Int
+        let state: SubscriptionConnectionState
+        let lastEvent: String
+    }
+
     private struct ListReproItemsResponse: Decodable {
         let items: [ReproItem]
     }
@@ -28,23 +35,58 @@ final class SubscriptionProbeStore: ObservableObject {
         let __typename: String?
     }
 
+    private struct WorkerRuntime {
+        let id: String
+        let label: String
+        var attempt = 0
+        var state: SubscriptionConnectionState = .disconnected
+        var lastEvent = "idle"
+        var subscription: AmplifyAsyncThrowingSequence<GraphQLSubscriptionEvent<ReproItem>>?
+        var task: Task<Void, Never>?
+        var watchdog: Task<Void, Never>?
+    }
+
     @Published private(set) var items: [ReproItem] = []
     @Published private(set) var logs: [String] = []
+    @Published private(set) var workerSnapshots: [WorkerSnapshot] = []
     @Published private(set) var isSignedIn = false
     @Published private(set) var connectionState: SubscriptionConnectionState = .disconnected
     @Published var restartRequiredMessage: String?
     @Published private(set) var isHostedUIInProgress = false
 
-    private var hasBootstrapped = false
-    private var subscription: AmplifyAsyncThrowingSequence<GraphQLSubscriptionEvent<ReproItem>>?
-    private var subscriptionTask: Task<Void, Never>?
-    private var watchdogTask: Task<Void, Never>?
-    private var authHubToken: UnsubscribeToken?
-    private var currentScenePhaseLabel = "uninitialized"
-    private var subscriptionAttempt = 0
-    private var activeSubscriptionAttempt: Int?
+    private static let workerDefinitions = [
+        ("subscription-a", "service-a"),
+        ("subscription-b", "service-b"),
+        ("subscription-c", "service-c"),
+    ]
 
     private let deviceLabel = UIDevice.current.name
+    private let subscriptionDocument = """
+    subscription OnCreateReproItem {
+      onCreateReproItem {
+        id
+        content
+        createdAt
+        updatedAt
+        createdByDevice
+        __typename
+      }
+    }
+    """
+
+    private var hasBootstrapped = false
+    private var authHubToken: UnsubscribeToken?
+    private var currentScenePhaseLabel = "uninitialized"
+    private var workers: [String: WorkerRuntime]
+
+    init() {
+        workers = Dictionary(
+            uniqueKeysWithValues: Self.workerDefinitions.map { id, label in
+                (id, WorkerRuntime(id: id, label: label))
+            }
+        )
+        refreshWorkerSnapshots()
+    }
 
     func bootstrapIfNeeded() async {
         guard !hasBootstrapped else { return }
@@ -53,8 +95,7 @@ final class SubscriptionProbeStore: ObservableObject {
         startObservingAuthHub()
         await refreshSession()
         if isSignedIn {
-            await refreshItems()
-            await startSubscription(reason: "bootstrap")
+            await runForegroundRecovery(reason: "bootstrap")
         }
     }
 
@@ -65,12 +106,11 @@ final class SubscriptionProbeStore: ObservableObject {
             appendLog("scenePhase=active")
             await refreshSession()
             if isSignedIn {
-                await refreshItems()
-                await startSubscription(reason: "scene-active")
+                await runForegroundRecovery(reason: "scene-active")
             }
         case .background:
             appendLog("scenePhase=background")
-            stopSubscription(reason: "scene-background")
+            stopAllSubscriptions(reason: "scene-background")
         case .inactive:
             appendLog("scenePhase=inactive")
         @unknown default:
@@ -83,8 +123,8 @@ final class SubscriptionProbeStore: ObservableObject {
             appendLog("restart skipped signed-out")
             return
         }
-        stopSubscription(reason: "restart-\(reason)")
-        await startSubscription(reason: reason)
+        stopAllSubscriptions(reason: "restart-\(reason)")
+        startAllSubscriptions(reason: reason)
     }
 
     func refreshSession() async {
@@ -93,7 +133,7 @@ final class SubscriptionProbeStore: ObservableObject {
             isSignedIn = session.isSignedIn
             appendLog("auth session isSignedIn=\(session.isSignedIn)")
             if !session.isSignedIn {
-                stopSubscription(reason: "session-signed-out")
+                stopAllSubscriptions(reason: "session-signed-out")
                 items = []
             }
         } catch {
@@ -118,8 +158,7 @@ final class SubscriptionProbeStore: ObservableObject {
             appendLog("hostedUI result isSignedIn=\(result.isSignedIn)")
             await refreshSession()
             if result.isSignedIn {
-                await refreshItems()
-                await startSubscription(reason: "hostedUI-success")
+                await runForegroundRecovery(reason: "hostedUI-success")
             }
         } catch {
             appendLog("hostedUI error \(String(describing: error))")
@@ -234,118 +273,227 @@ final class SubscriptionProbeStore: ObservableObject {
         }
     }
 
-    private func startSubscription(reason: String) async {
+    private func runForegroundRecovery(reason: String) async {
+        appendLog("foreground recovery reason=\(reason) workers=\(workers.count)")
+        let refreshTask = Task { [weak self] in
+            await self?.refreshItems()
+        }
+        let restartTask = Task { [weak self] in
+            self?.startAllSubscriptions(reason: reason)
+        }
+        _ = await refreshTask.value
+        _ = await restartTask.value
+    }
+
+    private func startAllSubscriptions(reason: String) {
         guard isSignedIn else {
             appendLog("subscription start skipped signed-out")
             return
         }
 
-        stopSubscription(reason: "prestart-\(reason)")
         restartRequiredMessage = nil
-        subscriptionAttempt += 1
-        let attempt = subscriptionAttempt
-        activeSubscriptionAttempt = attempt
-
-        let document = """
-        subscription OnCreateReproItem {
-          onCreateReproItem {
-            id
-            content
-            createdAt
-            updatedAt
-            createdByDevice
-            __typename
-          }
+        appendLog("subscriptions start reason=\(reason) scene=\(currentScenePhaseLabel)")
+        for workerID in Self.workerDefinitions.map(\.0) {
+            stopWorkerSubscription(id: workerID, reason: "prestart-\(reason)")
         }
-        """
+        for workerID in Self.workerDefinitions.map(\.0) {
+            startWorkerSubscription(id: workerID, reason: reason)
+        }
+    }
 
-        appendLog("subscription start attempt=\(attempt) reason=\(reason) scene=\(currentScenePhaseLabel)")
+    private func startWorkerSubscription(id: String, reason: String) {
+        guard isSignedIn, var worker = workers[id] else { return }
+
+        worker.attempt += 1
+        let attempt = worker.attempt
+        worker.state = .connecting
+        worker.lastEvent = "starting:\(reason)"
+        workers[id] = worker
+        refreshWorkerSnapshots()
+        appendWorkerLog(id: id, "start attempt=\(attempt) reason=\(reason) scene=\(currentScenePhaseLabel)")
+
         let request = GraphQLRequest<ReproItem>(
-            document: document,
+            document: subscriptionDocument,
             responseType: ReproItem.self,
             decodePath: "onCreateReproItem"
         )
-
         let sequence = Amplify.API.subscribe(request: request)
-        subscription = sequence
-        connectionState = .connecting
-        startWatchdog(context: "attempt=\(attempt) reason=\(reason) scene=\(currentScenePhaseLabel)")
 
-        subscriptionTask = Task { [weak self] in
+        worker.subscription = sequence
+        worker.watchdog = startWorkerWatchdog(
+            id: id,
+            attempt: attempt,
+            context: "attempt=\(attempt) reason=\(reason) scene=\(currentScenePhaseLabel)"
+        )
+
+        let task = Task { [weak self] in
             guard let self else { return }
 
             do {
                 for try await event in sequence {
                     switch event {
                     case .connection(let state):
-                        self.connectionState = state
-                        self.appendLog("subscription connection attempt=\(attempt) state=\(state)")
-                        if state == .connected {
-                            self.watchdogTask?.cancel()
-                            self.watchdogTask = nil
-                        }
+                        await self.handleWorkerConnection(id: id, attempt: attempt, state: state)
                     case .data(let result):
                         switch result {
                         case .success(let item):
-                            self.appendLog("subscription data attempt=\(attempt) id=\(item.id)")
-                            self.items.removeAll { $0.id == item.id }
-                            self.items.insert(item, at: 0)
+                            await self.handleWorkerDataSuccess(id: id, attempt: attempt, item: item)
                         case .failure(let error):
-                            self.appendLog("subscription data failure attempt=\(attempt) \(error.localizedDescription)")
+                            await self.handleWorkerDataFailure(
+                                id: id,
+                                attempt: attempt,
+                                message: error.localizedDescription
+                            )
                         }
                     }
                 }
-                self.appendLog("subscription loop ended attempt=\(attempt)")
-                if self.activeSubscriptionAttempt == attempt {
-                    self.activeSubscriptionAttempt = nil
-                }
-                self.connectionState = .disconnected
+                await self.finishWorkerLoop(id: id, attempt: attempt, result: "loop-ended")
             } catch is CancellationError {
-                self.appendLog("subscription cancelled attempt=\(attempt)")
-                if self.activeSubscriptionAttempt == attempt {
-                    self.activeSubscriptionAttempt = nil
-                }
-                self.connectionState = .disconnected
+                await self.finishWorkerLoop(id: id, attempt: attempt, result: "cancelled")
             } catch {
-                self.appendLog("subscription throw attempt=\(attempt) \(error.localizedDescription)")
-                if self.activeSubscriptionAttempt == attempt {
-                    self.activeSubscriptionAttempt = nil
-                }
-                self.connectionState = .disconnected
+                await self.finishWorkerLoop(
+                    id: id,
+                    attempt: attempt,
+                    result: "throw:\(error.localizedDescription)"
+                )
             }
         }
+
+        worker.task = task
+        workers[id] = worker
+        recalculateAggregateState()
+        refreshWorkerSnapshots()
     }
 
-    private func stopSubscription(reason: String) {
-        appendLog("subscription stop attempt=\(activeSubscriptionAttempt.map(String.init) ?? "none") reason=\(reason) scene=\(currentScenePhaseLabel)")
-        watchdogTask?.cancel()
-        watchdogTask = nil
-        subscription?.cancel()
-        subscription = nil
-        subscriptionTask?.cancel()
-        subscriptionTask = nil
-        activeSubscriptionAttempt = nil
-        connectionState = .disconnected
-    }
-
-    private func startWatchdog(context: String) {
-        watchdogTask?.cancel()
-        watchdogTask = Task { [weak self] in
-            guard let self else { return }
-            try? await Task.sleep(for: .seconds(8))
-            guard !Task.isCancelled else { return }
-            guard self.connectionState != .connected else { return }
-            self.restartRequiredMessage = "Subscription did not recover after foreground. Please fully close and reopen the app."
-            self.appendLog("watchdog timeout context=\(context)")
+    private func stopAllSubscriptions(reason: String) {
+        appendLog("subscriptions stop reason=\(reason) scene=\(currentScenePhaseLabel)")
+        for workerID in Self.workerDefinitions.map(\.0) {
+            stopWorkerSubscription(id: workerID, reason: reason)
         }
+    }
+
+    private func stopWorkerSubscription(id: String, reason: String) {
+        guard var worker = workers[id] else { return }
+
+        appendWorkerLog(id: id, "stop attempt=\(worker.attempt) reason=\(reason) scene=\(currentScenePhaseLabel)")
+        worker.watchdog?.cancel()
+        worker.watchdog = nil
+        worker.subscription?.cancel()
+        worker.subscription = nil
+        worker.task?.cancel()
+        worker.task = nil
+        worker.state = .disconnected
+        worker.lastEvent = "stopped:\(reason)"
+        workers[id] = worker
+        recalculateAggregateState()
+        refreshWorkerSnapshots()
+    }
+
+    private func handleWorkerConnection(
+        id: String,
+        attempt: Int,
+        state: SubscriptionConnectionState
+    ) {
+        guard var worker = workers[id], worker.attempt == attempt else { return }
+
+        worker.state = state
+        worker.lastEvent = "connection:\(state)"
+        if state == .connected {
+            worker.watchdog?.cancel()
+            worker.watchdog = nil
+        }
+        workers[id] = worker
+        appendWorkerLog(id: id, "connection attempt=\(attempt) state=\(state)")
+        recalculateAggregateState()
+        refreshWorkerSnapshots()
+    }
+
+    private func handleWorkerDataSuccess(id: String, attempt: Int, item: ReproItem) {
+        guard var worker = workers[id], worker.attempt == attempt else { return }
+
+        worker.lastEvent = "data:\(item.id)"
+        items.removeAll { $0.id == item.id }
+        items.insert(item, at: 0)
+        workers[id] = worker
+        appendWorkerLog(id: id, "data attempt=\(attempt) id=\(item.id)")
+        refreshWorkerSnapshots()
+    }
+
+    private func handleWorkerDataFailure(id: String, attempt: Int, message: String) {
+        guard var worker = workers[id], worker.attempt == attempt else { return }
+
+        worker.lastEvent = "data-failure"
+        workers[id] = worker
+        appendWorkerLog(id: id, "data failure attempt=\(attempt) \(message)")
+        refreshWorkerSnapshots()
+    }
+
+    private func finishWorkerLoop(id: String, attempt: Int, result: String) {
+        guard var worker = workers[id], worker.attempt == attempt else { return }
+
+        worker.subscription = nil
+        worker.task = nil
+        worker.watchdog?.cancel()
+        worker.watchdog = nil
+        worker.state = .disconnected
+        worker.lastEvent = result
+        workers[id] = worker
+        appendWorkerLog(id: id, "finish attempt=\(attempt) result=\(result)")
+        recalculateAggregateState()
+        refreshWorkerSnapshots()
+    }
+
+    private func startWorkerWatchdog(id: String, attempt: Int, context: String) -> Task<Void, Never> {
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(8))
+            guard let self else { return }
+            await self.handleWorkerWatchdogTimeout(id: id, attempt: attempt, context: context)
+        }
+    }
+
+    private func handleWorkerWatchdogTimeout(id: String, attempt: Int, context: String) {
+        guard let worker = workers[id], worker.attempt == attempt else { return }
+        guard worker.state != .connected else { return }
+
+        restartRequiredMessage = "One or more subscriptions did not recover after foreground. Please fully close and reopen the app."
+        appendWorkerLog(id: id, "watchdog timeout context=\(context)")
+    }
+
+    private func recalculateAggregateState() {
+        let states = workers.values.map(\.state)
+        if !states.isEmpty && states.allSatisfy({ $0 == .connected }) {
+            connectionState = .connected
+        } else if states.contains(.connecting) || states.contains(.connected) {
+            connectionState = .connecting
+        } else {
+            connectionState = .disconnected
+        }
+    }
+
+    private func refreshWorkerSnapshots() {
+        workerSnapshots = Self.workerDefinitions.compactMap { id, _ in
+            guard let worker = workers[id] else { return nil }
+            return WorkerSnapshot(
+                id: worker.id,
+                label: worker.label,
+                attempt: worker.attempt,
+                state: worker.state,
+                lastEvent: worker.lastEvent
+            )
+        }
+    }
+
+    private func appendWorkerLog(id: String, _ message: String) {
+        let label = workers[id]?.label ?? id
+        appendLog("[\(label)] \(message)")
     }
 
     private func appendLog(_ message: String) {
         let formatter = ISO8601DateFormatter()
         let line = "\(formatter.string(from: Date()))  \(message)"
         logs.insert(line, at: 0)
-        if logs.count > 200 {
-            logs.removeLast(logs.count - 200)
+        if logs.count > 300 {
+            logs.removeLast(logs.count - 300)
         }
     }
 
@@ -368,7 +516,7 @@ final class SubscriptionProbeStore: ObservableObject {
                     self?.isSignedIn = true
                 case HubPayload.EventName.Auth.signedOut, HubPayload.EventName.Auth.sessionExpired:
                     self?.isSignedIn = false
-                    self?.stopSubscription(reason: "hub-auth-state")
+                    self?.stopAllSubscriptions(reason: "hub-auth-state")
                     self?.items = []
                 default:
                     break

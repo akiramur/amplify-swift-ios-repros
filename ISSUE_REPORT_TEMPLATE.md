@@ -20,9 +20,9 @@ After upgrading `amplify-swift`, our app more frequently reaches a state where G
 
 - Cognito auth
 - AppSync GraphQL API
-- one `onCreate` subscription
-- background/foreground subscription stop/start
-- watchdog banner when reconnection does not complete
+- three concurrent `onCreate` subscription workers
+- background/foreground restart across all workers
+- watchdog banner when one or more workers do not reconnect
 
 ### Amplify Swift version
 
@@ -44,18 +44,18 @@ After upgrading `amplify-swift`, our app more frequently reaches a state where G
 5. Open `AmplifySwiftReproLab.xcodeproj`
 6. Run the app and sign in.
 7. Confirm the connection badge becomes `connected`.
-8. Tap `Create Probe Item` and confirm the subscription log receives the item.
+8. Tap `Create Probe Item` and confirm multiple subscription worker logs receive the item.
 9. Send the app to background.
 10. Bring the app back to foreground.
-11. Observe the connection badge and event log.
+11. Observe the aggregate connection badge, each worker card, and the event log.
 
 ### Expected behavior
 
-After returning to foreground, the restarted subscription should consistently emit a `.connection(.connected)` event and continue receiving data.
+After returning to foreground, all restarted subscription workers should consistently emit `.connection(.connected)` and continue receiving data.
 
 ### Actual behavior
 
-Sometimes the subscription does not recover to `connected` after foreground. In the repro app, the watchdog eventually shows:
+Sometimes one or more subscription workers do not recover to `connected` after foreground. In the repro app, the watchdog eventually shows:
 
 `Subscription did not recover after foreground. Please fully close and reopen the app.`
 

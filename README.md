@@ -9,8 +9,8 @@ It intentionally removes Jukeme-specific code and keeps only:
 - Amplify Gen 2 backend
 - Hosted UI sign-in for authentication
 - One GraphQL model
-- One `onCreate` subscription
-- Background/foreground restart logic
+- Three concurrent `onCreate` subscription workers
+- Background/foreground restart logic across all workers
 - A watchdog that surfaces a restart-required banner when the subscription does not return to `connected`
 
 ## Structure
@@ -36,10 +36,10 @@ Authorization uses Cognito User Pool auth only.
 After sign-in, the app:
 
 1. Fetches `listReproItems`
-2. Starts `onCreateReproItem`
-3. Cancels the subscription when the app enters background
-4. Starts it again when the app becomes active
-5. Shows a red banner if the subscription does not report `connected` before the watchdog timeout
+2. Starts three independent `onCreateReproItem` subscription workers
+3. Cancels all workers when the app enters background
+4. Starts them again when the app becomes active
+5. Shows a red banner if one or more workers do not report `connected` before the watchdog timeout
 
 This is intentionally close to the failure mode you described in Jukeme.
 
@@ -84,11 +84,11 @@ Sign in with Hosted UI, then use the app on a simulator or device.
 2. Confirm the connection state becomes `connected`.
 3. Tap `Create Probe Item` and confirm:
    - the mutation succeeds
-   - the subscription log receives the created item
+   - multiple subscription worker logs receive the created item
 4. Put the app in background for a while.
 5. Bring it back to foreground.
-6. Watch the connection log and state badge.
-7. If the watchdog expires before `connected`, the app shows the red restart banner.
+6. Watch the aggregate connection badge, each worker state card, and the event log.
+7. If the watchdog expires before all workers return to `connected`, the app shows the red restart banner.
 
 ## Files to attach when reporting the issue
 
