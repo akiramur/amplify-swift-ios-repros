@@ -10,11 +10,16 @@ struct AmplifySwiftReproLabApp: App {
 
     init() {
         do {
-            Amplify.Logging.logLevel = .verbose
+            _ = LogCapture.startVerboseCapture()
+            AuthDiagnostics.shared.clear()
+            AuthDiagnostics.shared.configureAmplifyVerboseLogging()
+            try Amplify.add(plugin: AuthDiagnosticsLoggingPlugin())
             try Amplify.add(plugin: AWSCognitoAuthPlugin())
             try Amplify.add(plugin: AWSAPIPlugin())
             try Amplify.configure(with: .amplifyOutputs)
+            AuthDiagnostics.shared.record("bootstrap", "Amplify configured successfully")
         } catch {
+            AuthDiagnostics.shared.record("bootstrap", "Amplify configure failed: \(String(describing: error))")
             assertionFailure("Failed to configure Amplify: \(error)")
         }
     }

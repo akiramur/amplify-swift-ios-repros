@@ -9,7 +9,7 @@ It intentionally removes Jukeme-specific code and keeps only:
 - Amplify Gen 2 backend
 - Hosted UI sign-in for authentication
 - One GraphQL model
-- Three concurrent `onCreate` subscription workers
+- Six concurrent `onCreate` subscription workers in the default aligned profile
 - Background/foreground restart logic across all workers
 - A watchdog that surfaces a restart-required banner when the subscription does not return to `connected`
 
@@ -36,7 +36,7 @@ Authorization uses Cognito User Pool auth only.
 After sign-in, the app:
 
 1. Fetches `listReproItems`
-2. Starts three independent `onCreateReproItem` subscription workers
+2. Starts multiple independent `onCreateReproItem` subscription workers
 3. Cancels all workers when the app enters background
 4. Starts them again when the app becomes active
 5. Shows a red banner if one or more workers do not report `connected` before the watchdog timeout
@@ -81,14 +81,24 @@ Sign in with Hosted UI, then use the app on a simulator or device.
 ## Repro flow
 
 1. Launch the app and sign in.
-2. Confirm the connection state becomes `connected`.
-3. Tap `Create Probe Item` and confirm:
+2. Confirm the stress badge shows `aligned`.
+3. Confirm the connection state becomes `connected`.
+4. Tap `Create Probe Item` and confirm:
    - the mutation succeeds
    - multiple subscription worker logs receive the created item
-4. Put the app in background for a while.
-5. Bring it back to foreground.
-6. Watch the aggregate connection badge, each worker state card, and the event log.
-7. If the watchdog expires before all workers return to `connected`, the app shows the red restart banner.
+5. Keep the app in the `aligned` profile settings listed below.
+6. Put the app in background briefly, then return it to foreground.
+7. Repeat the foreground/background transition a few times.
+8. Watch the aggregate connection badge, each worker state card, and the event log.
+9. If the watchdog expires before all workers return to `connected`, the app shows the red restart banner.
+
+This repro is most useful when the failure shape is:
+
+- `Auth.fetchSessionAPI` still succeeds
+- `query success items=...` still appears
+- subscription workers re-enter `connecting`
+- one or more workers never emit `connected`
+- watchdog timeout fires
 
 ## Recommended aligned profile
 
@@ -118,6 +128,38 @@ In release builds, Console output may be sparse. The app now emits minimal `os.L
 - foreground recovery started
 - worker reached `connected`
 - watchdog timeout fired
+
+## Collecting Amplify verbose logs after debugger detach
+
+This app starts `Amplify.Logging.logLevel = .verbose` at bootstrap and installs a file-backed `AuthDiagnosticsLoggingPlugin` similar to `../jukebox-web-ts/frontend-ios`.
+
+At startup it:
+
+- clears the previous `auth-diagnostics.log`
+- installs the logging plugin before `AWSCognitoAuthPlugin` and `AWSAPIPlugin`
+- writes Amplify logger output to `Library/Caches/ReproLogs/auth-diagnostics.log`
+- keeps the older process-output capture as a fallback if the plugin-backed file is unavailable
+
+After a repro run:
+
+1. Open the `Log Export` section in the app.
+2. Tap `Refresh Exports`.
+3. Export:
+   - `Verbose Log`
+     This is the main Amplify artifact. It comes from `auth-diagnostics.log` when available and falls back to redirected process output otherwise.
+   - `Unified Log`
+     This is a current-process `OSLogStore` snapshot. It is useful for `aligned foreground recovery`, `aligned connected`, and `watchdog-timeout` lines.
+   - `Repro Report`
+     This is an app-level snapshot containing the current profile/configuration, aggregate connection state, worker states, and the in-app event log.
+
+The verbose log is captured from the on-device file even if the Xcode debugger is no longer attached.
+The unified log export uses the current process's unified logging store, which can capture entries that do not go through the file-backed Amplify logger.
+
+For Amplify issue reports, attach all three files together. They answer different questions:
+
+- `Verbose Log`: what Amplify/AppSync realtime did internally
+- `Unified Log`: when aligned recovery and watchdog failures happened
+- `Repro Report`: what the app believed its scene and worker states were
 
 ## Files to attach when reporting the issue
 

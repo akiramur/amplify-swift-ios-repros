@@ -78,6 +78,62 @@ struct ContentView: View {
                     }
 
                     VStack(alignment: .leading, spacing: 12) {
+                        Text("Log Export")
+                            .font(.headline)
+
+                        Text("Use this after repro when the debugger is detached. Refresh creates snapshots from the current verbose log file and in-app event log.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        HStack(spacing: 12) {
+                            Button("Refresh Exports") {
+                                store.refreshExportArtifacts()
+                            }
+                            .buttonStyle(.bordered)
+
+                            if let verboseURL = store.verboseLogExportURL {
+                                ShareLink(item: verboseURL) {
+                                    Text("Export Verbose Log")
+                                }
+                                .buttonStyle(.borderedProminent)
+                            } else {
+                                Text("Verbose log unavailable")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+
+                        HStack(spacing: 12) {
+                            if let unifiedURL = store.unifiedLogExportURL {
+                                ShareLink(item: unifiedURL) {
+                                    Text("Export Unified Log")
+                                }
+                                .buttonStyle(.bordered)
+                            } else {
+                                Text("Unified log unavailable")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+
+                        HStack(spacing: 12) {
+                            if let reportURL = store.reproReportExportURL {
+                                ShareLink(item: reportURL) {
+                                    Text("Export Repro Report")
+                                }
+                                .buttonStyle(.borderedProminent)
+                            } else {
+                                Text("Repro report unavailable")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .padding(12)
+                    .background(Color(uiColor: .secondarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                    VStack(alignment: .leading, spacing: 12) {
                         HStack {
                             Text("Stress Mode")
                                 .font(.headline)

@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		4694C5323A93FADC23553453 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1C9F2F48F4139CE016B0B1A /* Assets.xcassets */; };
+		54A6F5EF1C384865AA0C6C21 /* LogCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54A6F5EE1C384865AA0C6C21 /* LogCapture.swift */; };
+		69B988C69E3C478B8AB2D7C7 /* AuthDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69B988C59E3C478B8AB2D7C7 /* AuthDiagnostics.swift */; };
 		7649BE49A2F6EF50D981F927 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F998DE04FC17CBD6E32F69 /* ContentView.swift */; };
 		7C6F2D5E3F76A596D3552D55 /* AWSCognitoAuthPlugin in Frameworks */ = {isa = PBXBuildFile; productRef = 1B1B1E051F3284AA1985A46E /* AWSCognitoAuthPlugin */; };
 		80E574C64D995057BD5EE456 /* AWSAPIPlugin in Frameworks */ = {isa = PBXBuildFile; productRef = 21E3BD1EBC50E80620B0D97F /* AWSAPIPlugin */; };
@@ -20,6 +22,8 @@
 		20FEC732DBDB38F34D901503 /* AmplifySwiftReproLab.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = AmplifySwiftReproLab.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		21FFDC2613EE89A956D67363 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		236ECADA5ADE0BEBC3A31F5D /* SubscriptionProbeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionProbeStore.swift; sourceTree = "<group>"; };
+		54A6F5EE1C384865AA0C6C21 /* LogCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogCapture.swift; sourceTree = "<group>"; };
+		69B988C59E3C478B8AB2D7C7 /* AuthDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthDiagnostics.swift; sourceTree = "<group>"; };
 		A1C9F2F48F4139CE016B0B1A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F1F998DE04FC17CBD6E32F69 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		F2DB457F0A5C733E02B932FB /* AmplifySwiftReproLabApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AmplifySwiftReproLabApp.swift; sourceTree = "<group>"; };
@@ -52,8 +56,10 @@
 			children = (
 				F2DB457F0A5C733E02B932FB /* AmplifySwiftReproLabApp.swift */,
 				A1C9F2F48F4139CE016B0B1A /* Assets.xcassets */,
+				69B988C59E3C478B8AB2D7C7 /* AuthDiagnostics.swift */,
 				F1F998DE04FC17CBD6E32F69 /* ContentView.swift */,
 				21FFDC2613EE89A956D67363 /* Info.plist */,
+				54A6F5EE1C384865AA0C6C21 /* LogCapture.swift */,
 				236ECADA5ADE0BEBC3A31F5D /* SubscriptionProbeStore.swift */,
 			);
 			path = App;
@@ -167,6 +173,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				E50EA974241D0C27CE138F04 /* AmplifySwiftReproLabApp.swift in Sources */,
+				54A6F5EF1C384865AA0C6C21 /* LogCapture.swift in Sources */,
+				69B988C69E3C478B8AB2D7C7 /* AuthDiagnostics.swift in Sources */,
 				7649BE49A2F6EF50D981F927 /* ContentView.swift in Sources */,
 				E3532D0F8B862E2D6B70CFA8 /* SubscriptionProbeStore.swift in Sources */,
 			);

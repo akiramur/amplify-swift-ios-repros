@@ -74,8 +74,12 @@ final class SubscriptionProbeStore: ObservableObject {
     @Published private(set) var stressConfig = StressConfig()
     @Published private(set) var isStressRunInFlight = false
     @Published private(set) var selectedStressProfile: StressProfile = .aligned
+    @Published private(set) var verboseLogExportURL: URL?
+    @Published private(set) var unifiedLogExportURL: URL?
+    @Published private(set) var reproReportExportURL: URL?
 
     private let logger = Logger(subsystem: "AmplifySwiftReproLab", category: "SubscriptionProbe")
+    private let logTimestampFormatter = ISO8601DateFormatter()
     private let deviceLabel = UIDevice.current.name
     private let subscriptionDocument = """
     subscription OnCreateReproItem {
@@ -113,6 +117,7 @@ final class SubscriptionProbeStore: ObservableObject {
         guard !hasBootstrapped else { return }
         hasBootstrapped = true
         appendLog("bootstrap")
+        refreshExportArtifacts()
         startObservingAuthHub()
         await refreshSession()
         if isSignedIn {
@@ -281,6 +286,12 @@ final class SubscriptionProbeStore: ObservableObject {
                 }
             }
         }
+    }
+
+    func refreshExportArtifacts() {
+        verboseLogExportURL = LogCapture.snapshotVerboseLog()
+        unifiedLogExportURL = LogCapture.snapshotUnifiedLog()
+        reproReportExportURL = LogCapture.writeReproReport(contents: reproReportContents())
     }
 
     func refreshSession() async {
@@ -629,6 +640,7 @@ final class SubscriptionProbeStore: ObservableObject {
         restartRequiredMessage = "One or more subscriptions did not recover after foreground. Please fully close and reopen the app."
         appendWorkerLog(id: id, "watchdog timeout context=\(context)")
         logFailureSignal("watchdog-timeout worker=\(worker.label) attempt=\(attempt) context=\(context)")
+        refreshExportArtifacts()
     }
 
     private func recalculateAggregateState() {
@@ -661,8 +673,7 @@ final class SubscriptionProbeStore: ObservableObject {
     }
 
     private func appendLog(_ message: String) {
-        let formatter = ISO8601DateFormatter()
-        let line = "\(formatter.string(from: Date()))  \(message)"
+        let line = "\(logTimestampFormatter.string(from: Date()))  \(message)"
         logs.insert(line, at: 0)
         if logs.count > 300 {
             logs.removeLast(logs.count - 300)
@@ -759,6 +770,27 @@ final class SubscriptionProbeStore: ObservableObject {
 
     private func logFailureSignal(_ message: String) {
         logger.error("\(message, privacy: .public)")
+    }
+
+    private func reproReportContents() -> String {
+        [
+            "GeneratedAt: \(logTimestampFormatter.string(from: Date()))",
+            "Configuration: \(configurationSummary)",
+            "IsSignedIn: \(isSignedIn)",
+            "ConnectionState: \(connectionState)",
+            "CurrentScene: \(currentScenePhaseLabel)",
+            "RestartRequiredMessage: \(restartRequiredMessage ?? "nil")",
+            "VerboseLogPath: \(LogCapture.verboseLogURL.path)",
+            "UnifiedLogExportAvailable: \(unifiedLogExportURL != nil)",
+            "",
+            "Workers:",
+            workerSnapshots.map {
+                "\($0.label) attempt=\($0.attempt) state=\($0.state) lastEvent=\($0.lastEvent)"
+            }.joined(separator: "\n"),
+            "",
+            "EventLog:",
+            logs.reversed().joined(separator: "\n"),
+        ].joined(separator: "\n")
     }
 
     private static func makeWorkerIDs(count: Int) -> [String] {
