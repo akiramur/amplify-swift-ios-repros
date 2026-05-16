@@ -1,5 +1,6 @@
 import Amplify
 import Foundation
+import os
 import SwiftUI
 import UIKit
 
@@ -11,6 +12,15 @@ final class SubscriptionProbeStore: ObservableObject {
         var restartJitterMilliseconds = 0
         var queryBurstCount = 1
         var mutationBurstCount = 0
+        var duplicateActiveRecoveryCount = 1
+        var backgroundStopDelayMilliseconds = 0
+        var stopOnInactive = false
+        var skipPrestartStop = false
+    }
+
+    enum StressProfile: String {
+        case aligned
+        case experimental
     }
 
     struct ReproItem: Decodable, Identifiable {
@@ -63,7 +73,9 @@ final class SubscriptionProbeStore: ObservableObject {
     @Published private(set) var isHostedUIInProgress = false
     @Published private(set) var stressConfig = StressConfig()
     @Published private(set) var isStressRunInFlight = false
+    @Published private(set) var selectedStressProfile: StressProfile = .aligned
 
+    private let logger = Logger(subsystem: "AmplifySwiftReproLab", category: "SubscriptionProbe")
     private let deviceLabel = UIDevice.current.name
     private let subscriptionDocument = """
     subscription OnCreateReproItem {
@@ -81,11 +93,14 @@ final class SubscriptionProbeStore: ObservableObject {
     private var hasBootstrapped = false
     private var authHubToken: UnsubscribeToken?
     private var currentScenePhaseLabel = "uninitialized"
+    private var delayedBackgroundStopTask: Task<Void, Never>?
     private var workerIDs: [String]
     private var workers: [String: WorkerRuntime]
 
     init() {
-        workerIDs = Self.makeWorkerIDs(count: StressConfig().workerCount)
+        let initialConfig = Self.alignedStressConfig()
+        stressConfig = initialConfig
+        workerIDs = Self.makeWorkerIDs(count: initialConfig.workerCount)
         workers = Dictionary(
             uniqueKeysWithValues: workerIDs.enumerated().map { index, id in
                 (id, WorkerRuntime(id: id, label: Self.workerLabel(for: index)))
@@ -112,13 +127,21 @@ final class SubscriptionProbeStore: ObservableObject {
             appendLog("scenePhase=active")
             await refreshSession()
             if isSignedIn {
-                await runForegroundRecovery(reason: "scene-active")
+                for attempt in 0..<stressConfig.duplicateActiveRecoveryCount {
+                    if attempt > 0 {
+                        try? await Task.sleep(nanoseconds: UInt64(attempt) * 75_000_000)
+                    }
+                    await runForegroundRecovery(reason: "scene-active-\(attempt)")
+                }
             }
         case .background:
             appendLog("scenePhase=background")
-            stopAllSubscriptions(reason: "scene-background")
+            scheduleBackgroundStop(reason: "scene-background")
         case .inactive:
             appendLog("scenePhase=inactive")
+            if stressConfig.stopOnInactive {
+                scheduleBackgroundStop(reason: "scene-inactive")
+            }
         @unknown default:
             appendLog("scenePhase=unknown")
         }
@@ -138,49 +161,78 @@ final class SubscriptionProbeStore: ObservableObject {
         guard stressConfig.workerCount != normalized else { return }
 
         stressConfig.workerCount = normalized
-        let nextWorkerIDs = Self.makeWorkerIDs(count: normalized)
-        var nextWorkers: [String: WorkerRuntime] = [:]
-        for (index, id) in nextWorkerIDs.enumerated() {
-            if let existing = workers[id] {
-                nextWorkers[id] = existing
-            } else {
-                nextWorkers[id] = WorkerRuntime(id: id, label: Self.workerLabel(for: index))
-            }
-        }
-
-        for id in workerIDs where !nextWorkerIDs.contains(id) {
-            stopWorkerSubscription(id: id, reason: "worker-count-change")
-        }
-
-        workerIDs = nextWorkerIDs
-        workers = nextWorkers
-        recalculateAggregateState()
-        refreshWorkerSnapshots()
+        selectedStressProfile = .experimental
+        rebuildWorkersForCurrentConfiguration(reason: "worker-count-change")
         appendLog("stress workerCount=\(normalized)")
+    }
+
+    func applyAlignedStressProfile() {
+        selectedStressProfile = .aligned
+        stressConfig = Self.alignedStressConfig()
+        appendLog("stress profile=aligned")
+        rebuildWorkersForCurrentConfiguration(reason: "profile-aligned")
+        logAlignedConfiguration(reason: "profile-applied")
+    }
+
+    func applyExperimentalStressProfile() {
+        selectedStressProfile = .experimental
+        stressConfig = Self.experimentalStressConfig()
+        appendLog("stress profile=experimental")
+        rebuildWorkersForCurrentConfiguration(reason: "profile-experimental")
     }
 
     func setRecoveryBurstCount(_ count: Int) {
         let normalized = min(max(count, 1), 10)
         stressConfig.recoveryBurstCount = normalized
+        selectedStressProfile = .experimental
         appendLog("stress recoveryBurstCount=\(normalized)")
     }
 
     func setRestartJitterMilliseconds(_ milliseconds: Int) {
         let normalized = min(max(milliseconds, 0), 1_000)
         stressConfig.restartJitterMilliseconds = normalized
+        selectedStressProfile = .experimental
         appendLog("stress restartJitterMs=\(normalized)")
     }
 
     func setQueryBurstCount(_ count: Int) {
         let normalized = min(max(count, 1), 6)
         stressConfig.queryBurstCount = normalized
+        selectedStressProfile = .experimental
         appendLog("stress queryBurstCount=\(normalized)")
     }
 
     func setMutationBurstCount(_ count: Int) {
         let normalized = min(max(count, 0), 6)
         stressConfig.mutationBurstCount = normalized
+        selectedStressProfile = .experimental
         appendLog("stress mutationBurstCount=\(normalized)")
+    }
+
+    func setDuplicateActiveRecoveryCount(_ count: Int) {
+        let normalized = min(max(count, 1), 5)
+        stressConfig.duplicateActiveRecoveryCount = normalized
+        selectedStressProfile = .experimental
+        appendLog("stress duplicateActiveRecoveryCount=\(normalized)")
+    }
+
+    func setBackgroundStopDelayMilliseconds(_ milliseconds: Int) {
+        let normalized = min(max(milliseconds, 0), 2_000)
+        stressConfig.backgroundStopDelayMilliseconds = normalized
+        selectedStressProfile = .experimental
+        appendLog("stress backgroundStopDelayMs=\(normalized)")
+    }
+
+    func setStopOnInactive(_ enabled: Bool) {
+        stressConfig.stopOnInactive = enabled
+        selectedStressProfile = .experimental
+        appendLog("stress stopOnInactive=\(enabled)")
+    }
+
+    func setSkipPrestartStop(_ enabled: Bool) {
+        stressConfig.skipPrestartStop = enabled
+        selectedStressProfile = .experimental
+        appendLog("stress skipPrestartStop=\(enabled)")
     }
 
     func runStressRecoveryBurst() async {
@@ -197,6 +249,7 @@ final class SubscriptionProbeStore: ObservableObject {
         appendLog(
             "stress start workers=\(stressConfig.workerCount) recoveries=\(stressConfig.recoveryBurstCount) queryBurst=\(stressConfig.queryBurstCount) mutationBurst=\(stressConfig.mutationBurstCount) jitterMs=\(stressConfig.restartJitterMilliseconds)"
         )
+        logFailureSignal("stress-run-start profile=\(selectedStressProfile.rawValue) \(configurationSummary)")
         defer {
             isStressRunInFlight = false
             appendLog("stress end")
@@ -378,6 +431,9 @@ final class SubscriptionProbeStore: ObservableObject {
 
     private func runForegroundRecovery(reason: String) async {
         appendLog("foreground recovery reason=\(reason) workers=\(workers.count)")
+        if selectedStressProfile == .aligned {
+            logger.info("aligned foreground recovery reason=\(reason, privacy: .public) \(self.configurationSummary, privacy: .public)")
+        }
         let refreshTask = Task { [weak self] in
             await self?.refreshItems()
         }
@@ -396,8 +452,12 @@ final class SubscriptionProbeStore: ObservableObject {
 
         restartRequiredMessage = nil
         appendLog("subscriptions start reason=\(reason) scene=\(currentScenePhaseLabel)")
-        for workerID in workerIDs {
-            stopWorkerSubscription(id: workerID, reason: "prestart-\(reason)")
+        if !stressConfig.skipPrestartStop {
+            for workerID in workerIDs {
+                stopWorkerSubscription(id: workerID, reason: "prestart-\(reason)")
+            }
+        } else {
+            appendLog("subscriptions start skip-prestop reason=\(reason)")
         }
         for (index, workerID) in workerIDs.enumerated() {
             if stressConfig.restartJitterMilliseconds > 0, index > 0 {
@@ -509,6 +569,9 @@ final class SubscriptionProbeStore: ObservableObject {
         if state == .connected {
             worker.watchdog?.cancel()
             worker.watchdog = nil
+            if selectedStressProfile == .aligned {
+                logger.info("aligned connected worker=\(worker.label, privacy: .public) attempt=\(attempt, privacy: .public)")
+            }
         }
         workers[id] = worker
         appendWorkerLog(id: id, "connection attempt=\(attempt) state=\(state)")
@@ -565,6 +628,7 @@ final class SubscriptionProbeStore: ObservableObject {
 
         restartRequiredMessage = "One or more subscriptions did not recover after foreground. Please fully close and reopen the app."
         appendWorkerLog(id: id, "watchdog timeout context=\(context)")
+        logFailureSignal("watchdog-timeout worker=\(worker.label) attempt=\(attempt) context=\(context)")
     }
 
     private func recalculateAggregateState() {
@@ -642,12 +706,95 @@ final class SubscriptionProbeStore: ObservableObject {
         await runForegroundRecovery(reason: "stress-\(index)")
     }
 
+    private func rebuildWorkersForCurrentConfiguration(reason: String) {
+        let nextWorkerIDs = Self.makeWorkerIDs(count: stressConfig.workerCount)
+        var nextWorkers: [String: WorkerRuntime] = [:]
+        for (index, id) in nextWorkerIDs.enumerated() {
+            if let existing = workers[id] {
+                nextWorkers[id] = existing
+            } else {
+                nextWorkers[id] = WorkerRuntime(id: id, label: Self.workerLabel(for: index))
+            }
+        }
+
+        for id in workerIDs where !nextWorkerIDs.contains(id) {
+            stopWorkerSubscription(id: id, reason: reason)
+        }
+
+        workerIDs = nextWorkerIDs
+        workers = nextWorkers
+        recalculateAggregateState()
+        refreshWorkerSnapshots()
+    }
+
+    private func scheduleBackgroundStop(reason: String) {
+        delayedBackgroundStopTask?.cancel()
+
+        let delayMilliseconds = stressConfig.backgroundStopDelayMilliseconds
+        guard delayMilliseconds > 0 else {
+            stopAllSubscriptions(reason: reason)
+            return
+        }
+
+        appendLog("background stop scheduled reason=\(reason) delayMs=\(delayMilliseconds)")
+        delayedBackgroundStopTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(delayMilliseconds) * 1_000_000)
+            await self?.runDelayedBackgroundStop(reason: reason, delayMilliseconds: delayMilliseconds)
+        }
+    }
+
+    private func runDelayedBackgroundStop(reason: String, delayMilliseconds: Int) {
+        appendLog("background stop firing reason=\(reason) delayMs=\(delayMilliseconds) currentScene=\(currentScenePhaseLabel)")
+        stopAllSubscriptions(reason: "\(reason)-delayed")
+    }
+
+    private var configurationSummary: String {
+        "profile=\(selectedStressProfile.rawValue) workers=\(stressConfig.workerCount) recoveries=\(stressConfig.recoveryBurstCount) jitterMs=\(stressConfig.restartJitterMilliseconds) queryBurst=\(stressConfig.queryBurstCount) mutationBurst=\(stressConfig.mutationBurstCount) activeRecoveries=\(stressConfig.duplicateActiveRecoveryCount) bgDelayMs=\(stressConfig.backgroundStopDelayMilliseconds) stopOnInactive=\(stressConfig.stopOnInactive) skipPrestartStop=\(stressConfig.skipPrestartStop)"
+    }
+
+    private func logAlignedConfiguration(reason: String) {
+        guard selectedStressProfile == .aligned else { return }
+        logger.info("aligned config reason=\(reason, privacy: .public) \(self.configurationSummary, privacy: .public)")
+    }
+
+    private func logFailureSignal(_ message: String) {
+        logger.error("\(message, privacy: .public)")
+    }
+
     private static func makeWorkerIDs(count: Int) -> [String] {
         (0..<count).map { "subscription-\($0 + 1)" }
     }
 
     private static func workerLabel(for index: Int) -> String {
         "service-\(index + 1)"
+    }
+
+    private static func alignedStressConfig() -> StressConfig {
+        StressConfig(
+            workerCount: 6,
+            recoveryBurstCount: 1,
+            restartJitterMilliseconds: 150,
+            queryBurstCount: 2,
+            mutationBurstCount: 0,
+            duplicateActiveRecoveryCount: 1,
+            backgroundStopDelayMilliseconds: 250,
+            stopOnInactive: false,
+            skipPrestartStop: false
+        )
+    }
+
+    private static func experimentalStressConfig() -> StressConfig {
+        StressConfig(
+            workerCount: 8,
+            recoveryBurstCount: 4,
+            restartJitterMilliseconds: 150,
+            queryBurstCount: 3,
+            mutationBurstCount: 2,
+            duplicateActiveRecoveryCount: 3,
+            backgroundStopDelayMilliseconds: 600,
+            stopOnInactive: true,
+            skipPrestartStop: true
+        )
     }
 }
 

@@ -90,6 +90,35 @@ Sign in with Hosted UI, then use the app on a simulator or device.
 6. Watch the aggregate connection badge, each worker state card, and the event log.
 7. If the watchdog expires before all workers return to `connected`, the app shows the red restart banner.
 
+## Recommended aligned profile
+
+Use the `aligned` profile when you want behavior that stays close to `../jukebox-web-ts/frontend-ios`.
+
+- `Workers = 6`
+- `Recovery bursts = 1`
+- `Restart jitter = 150 ms`
+- `Query burst = 2`
+- `Mutation burst = 0`
+- `Active recoveries = 1`
+- `Background stop delay = 250 ms`
+- `Stop on inactive = false`
+- `Skip prestart stop = false`
+
+Expected failure shape when repro succeeds:
+
+- app returns to foreground
+- workers emit `start`
+- workers move to `connection state=connecting`
+- one or more workers never emit `connected`
+- watchdog timeout fires and the red restart banner appears
+
+In release builds, Console output may be sparse. The app now emits minimal `os.Logger` lines for the aligned profile and watchdog failures so you can confirm:
+
+- aligned configuration in use
+- foreground recovery started
+- worker reached `connected`
+- watchdog timeout fired
+
 ## Files to attach when reporting the issue
 
 - `ios/App/SubscriptionProbeStore.swift`

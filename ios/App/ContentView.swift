@@ -82,6 +82,13 @@ struct ContentView: View {
                             Text("Stress Mode")
                                 .font(.headline)
                             Spacer()
+                            Text(store.selectedStressProfile == .aligned ? "aligned" : "experimental")
+                                .font(.caption.monospaced().weight(.semibold))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background((store.selectedStressProfile == .aligned ? Color.blue : Color.orange).opacity(0.18))
+                                .foregroundStyle(store.selectedStressProfile == .aligned ? Color.blue : Color.orange)
+                                .clipShape(Capsule())
                             if store.isStressRunInFlight {
                                 Text("running")
                                     .font(.caption.monospaced().weight(.semibold))
@@ -90,33 +97,87 @@ struct ContentView: View {
                                     .background(Color.orange.opacity(0.18))
                                     .foregroundStyle(.orange)
                                     .clipShape(Capsule())
-                            }
+                                }
                         }
 
-                        Stepper("Workers: \(store.stressConfig.workerCount)", value: Binding(
-                            get: { store.stressConfig.workerCount },
-                            set: { store.setWorkerCount($0) }
-                        ), in: 1...12)
+                        HStack(spacing: 12) {
+                            Button("Apply Aligned Profile") {
+                                store.applyAlignedStressProfile()
+                            }
+                            .buttonStyle(.borderedProminent)
 
-                        Stepper("Recovery bursts: \(store.stressConfig.recoveryBurstCount)", value: Binding(
-                            get: { store.stressConfig.recoveryBurstCount },
-                            set: { store.setRecoveryBurstCount($0) }
-                        ), in: 1...10)
+                            Button("Apply Experimental Profile") {
+                                store.applyExperimentalStressProfile()
+                            }
+                            .buttonStyle(.bordered)
+                        }
 
-                        Stepper("Restart jitter: \(store.stressConfig.restartJitterMilliseconds) ms", value: Binding(
-                            get: { store.stressConfig.restartJitterMilliseconds },
-                            set: { store.setRestartJitterMilliseconds($0) }
-                        ), in: 0...1000, step: 50)
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Aligned Controls")
+                                .font(.subheadline.weight(.semibold))
+                            Text("Keep this section close to ../jukebox-web-ts foreground/background behavior.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
 
-                        Stepper("Query burst: \(store.stressConfig.queryBurstCount)", value: Binding(
-                            get: { store.stressConfig.queryBurstCount },
-                            set: { store.setQueryBurstCount($0) }
-                        ), in: 1...6)
+                            Stepper("Workers: \(store.stressConfig.workerCount)", value: Binding(
+                                get: { store.stressConfig.workerCount },
+                                set: { store.setWorkerCount($0) }
+                            ), in: 1...12)
 
-                        Stepper("Mutation burst: \(store.stressConfig.mutationBurstCount)", value: Binding(
-                            get: { store.stressConfig.mutationBurstCount },
-                            set: { store.setMutationBurstCount($0) }
-                        ), in: 0...6)
+                            Stepper("Recovery bursts: \(store.stressConfig.recoveryBurstCount)", value: Binding(
+                                get: { store.stressConfig.recoveryBurstCount },
+                                set: { store.setRecoveryBurstCount($0) }
+                            ), in: 1...10)
+
+                            Stepper("Restart jitter: \(store.stressConfig.restartJitterMilliseconds) ms", value: Binding(
+                                get: { store.stressConfig.restartJitterMilliseconds },
+                                set: { store.setRestartJitterMilliseconds($0) }
+                            ), in: 0...1000, step: 50)
+
+                            Stepper("Query burst: \(store.stressConfig.queryBurstCount)", value: Binding(
+                                get: { store.stressConfig.queryBurstCount },
+                                set: { store.setQueryBurstCount($0) }
+                            ), in: 1...6)
+                        }
+                        .padding(12)
+                        .background(Color.blue.opacity(0.06))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Experimental Controls")
+                                .font(.subheadline.weight(.semibold))
+                            Text("These increase repro odds but can diverge from ../jukebox-web-ts and trigger unrelated failures.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+
+                            Stepper("Mutation burst: \(store.stressConfig.mutationBurstCount)", value: Binding(
+                                get: { store.stressConfig.mutationBurstCount },
+                                set: { store.setMutationBurstCount($0) }
+                            ), in: 0...6)
+
+                            Stepper("Active recoveries: \(store.stressConfig.duplicateActiveRecoveryCount)", value: Binding(
+                                get: { store.stressConfig.duplicateActiveRecoveryCount },
+                                set: { store.setDuplicateActiveRecoveryCount($0) }
+                            ), in: 1...5)
+
+                            Stepper("Background stop delay: \(store.stressConfig.backgroundStopDelayMilliseconds) ms", value: Binding(
+                                get: { store.stressConfig.backgroundStopDelayMilliseconds },
+                                set: { store.setBackgroundStopDelayMilliseconds($0) }
+                            ), in: 0...2000, step: 100)
+
+                            Toggle("Stop on inactive", isOn: Binding(
+                                get: { store.stressConfig.stopOnInactive },
+                                set: { store.setStopOnInactive($0) }
+                            ))
+
+                            Toggle("Skip prestart stop", isOn: Binding(
+                                get: { store.stressConfig.skipPrestartStop },
+                                set: { store.setSkipPrestartStop($0) }
+                            ))
+                        }
+                        .padding(12)
+                        .background(Color.orange.opacity(0.08))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
 
                         HStack(spacing: 12) {
                             Button("Run Stress Burst") {
