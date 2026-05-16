@@ -10,6 +10,7 @@ struct AmplifySwiftReproLabApp: App {
 
     init() {
         do {
+            //Amplify.Logging.logLevel = .verbose
             try Amplify.add(plugin: AWSCognitoAuthPlugin())
             try Amplify.add(plugin: AWSAPIPlugin())
             try Amplify.configure(with: .amplifyOutputs)

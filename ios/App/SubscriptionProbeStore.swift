@@ -5,6 +5,14 @@ import UIKit
 
 @MainActor
 final class SubscriptionProbeStore: ObservableObject {
+    struct StressConfig {
+        var workerCount = 3
+        var recoveryBurstCount = 1
+        var restartJitterMilliseconds = 0
+        var queryBurstCount = 1
+        var mutationBurstCount = 0
+    }
+
     struct ReproItem: Decodable, Identifiable {
         let id: String
         let content: String
@@ -53,12 +61,8 @@ final class SubscriptionProbeStore: ObservableObject {
     @Published private(set) var connectionState: SubscriptionConnectionState = .disconnected
     @Published var restartRequiredMessage: String?
     @Published private(set) var isHostedUIInProgress = false
-
-    private static let workerDefinitions = [
-        ("subscription-a", "service-a"),
-        ("subscription-b", "service-b"),
-        ("subscription-c", "service-c"),
-    ]
+    @Published private(set) var stressConfig = StressConfig()
+    @Published private(set) var isStressRunInFlight = false
 
     private let deviceLabel = UIDevice.current.name
     private let subscriptionDocument = """
@@ -77,12 +81,14 @@ final class SubscriptionProbeStore: ObservableObject {
     private var hasBootstrapped = false
     private var authHubToken: UnsubscribeToken?
     private var currentScenePhaseLabel = "uninitialized"
+    private var workerIDs: [String]
     private var workers: [String: WorkerRuntime]
 
     init() {
+        workerIDs = Self.makeWorkerIDs(count: StressConfig().workerCount)
         workers = Dictionary(
-            uniqueKeysWithValues: Self.workerDefinitions.map { id, label in
-                (id, WorkerRuntime(id: id, label: label))
+            uniqueKeysWithValues: workerIDs.enumerated().map { index, id in
+                (id, WorkerRuntime(id: id, label: Self.workerLabel(for: index)))
             }
         )
         refreshWorkerSnapshots()
@@ -124,7 +130,104 @@ final class SubscriptionProbeStore: ObservableObject {
             return
         }
         stopAllSubscriptions(reason: "restart-\(reason)")
-        startAllSubscriptions(reason: reason)
+        await startAllSubscriptions(reason: reason)
+    }
+
+    func setWorkerCount(_ count: Int) {
+        let normalized = min(max(count, 1), 12)
+        guard stressConfig.workerCount != normalized else { return }
+
+        stressConfig.workerCount = normalized
+        let nextWorkerIDs = Self.makeWorkerIDs(count: normalized)
+        var nextWorkers: [String: WorkerRuntime] = [:]
+        for (index, id) in nextWorkerIDs.enumerated() {
+            if let existing = workers[id] {
+                nextWorkers[id] = existing
+            } else {
+                nextWorkers[id] = WorkerRuntime(id: id, label: Self.workerLabel(for: index))
+            }
+        }
+
+        for id in workerIDs where !nextWorkerIDs.contains(id) {
+            stopWorkerSubscription(id: id, reason: "worker-count-change")
+        }
+
+        workerIDs = nextWorkerIDs
+        workers = nextWorkers
+        recalculateAggregateState()
+        refreshWorkerSnapshots()
+        appendLog("stress workerCount=\(normalized)")
+    }
+
+    func setRecoveryBurstCount(_ count: Int) {
+        let normalized = min(max(count, 1), 10)
+        stressConfig.recoveryBurstCount = normalized
+        appendLog("stress recoveryBurstCount=\(normalized)")
+    }
+
+    func setRestartJitterMilliseconds(_ milliseconds: Int) {
+        let normalized = min(max(milliseconds, 0), 1_000)
+        stressConfig.restartJitterMilliseconds = normalized
+        appendLog("stress restartJitterMs=\(normalized)")
+    }
+
+    func setQueryBurstCount(_ count: Int) {
+        let normalized = min(max(count, 1), 6)
+        stressConfig.queryBurstCount = normalized
+        appendLog("stress queryBurstCount=\(normalized)")
+    }
+
+    func setMutationBurstCount(_ count: Int) {
+        let normalized = min(max(count, 0), 6)
+        stressConfig.mutationBurstCount = normalized
+        appendLog("stress mutationBurstCount=\(normalized)")
+    }
+
+    func runStressRecoveryBurst() async {
+        guard isSignedIn else {
+            appendLog("stress skipped signed-out")
+            return
+        }
+        guard !isStressRunInFlight else {
+            appendLog("stress skipped already-running")
+            return
+        }
+
+        isStressRunInFlight = true
+        appendLog(
+            "stress start workers=\(stressConfig.workerCount) recoveries=\(stressConfig.recoveryBurstCount) queryBurst=\(stressConfig.queryBurstCount) mutationBurst=\(stressConfig.mutationBurstCount) jitterMs=\(stressConfig.restartJitterMilliseconds)"
+        )
+        defer {
+            isStressRunInFlight = false
+            appendLog("stress end")
+        }
+
+        await withTaskGroup(of: Void.self) { group in
+            for index in 0..<stressConfig.recoveryBurstCount {
+                group.addTask { [weak self] in
+                    guard let self else { return }
+                    await self.runStressRecoveryAttempt(index: index)
+                }
+            }
+
+            for index in 0..<stressConfig.queryBurstCount {
+                group.addTask { [weak self] in
+                    guard let self else { return }
+                    if index > 0 {
+                        try? await Task.sleep(nanoseconds: UInt64(index) * 120_000_000)
+                    }
+                    await self.refreshItems()
+                }
+            }
+
+            for index in 0..<stressConfig.mutationBurstCount {
+                group.addTask { [weak self] in
+                    guard let self else { return }
+                    try? await Task.sleep(nanoseconds: UInt64(index + 1) * 180_000_000)
+                    await self.createProbeItem()
+                }
+            }
+        }
     }
 
     func refreshSession() async {
@@ -279,13 +382,13 @@ final class SubscriptionProbeStore: ObservableObject {
             await self?.refreshItems()
         }
         let restartTask = Task { [weak self] in
-            self?.startAllSubscriptions(reason: reason)
+            await self?.startAllSubscriptions(reason: reason)
         }
         _ = await refreshTask.value
         _ = await restartTask.value
     }
 
-    private func startAllSubscriptions(reason: String) {
+    private func startAllSubscriptions(reason: String) async {
         guard isSignedIn else {
             appendLog("subscription start skipped signed-out")
             return
@@ -293,10 +396,15 @@ final class SubscriptionProbeStore: ObservableObject {
 
         restartRequiredMessage = nil
         appendLog("subscriptions start reason=\(reason) scene=\(currentScenePhaseLabel)")
-        for workerID in Self.workerDefinitions.map(\.0) {
+        for workerID in workerIDs {
             stopWorkerSubscription(id: workerID, reason: "prestart-\(reason)")
         }
-        for workerID in Self.workerDefinitions.map(\.0) {
+        for (index, workerID) in workerIDs.enumerated() {
+            if stressConfig.restartJitterMilliseconds > 0, index > 0 {
+                let baseDelay = UInt64(index) * UInt64(stressConfig.restartJitterMilliseconds) * 1_000_000
+                let randomDelay = UInt64.random(in: 0...UInt64(stressConfig.restartJitterMilliseconds)) * 1_000_000
+                try? await Task.sleep(nanoseconds: baseDelay + randomDelay)
+            }
             startWorkerSubscription(id: workerID, reason: reason)
         }
     }
@@ -367,7 +475,7 @@ final class SubscriptionProbeStore: ObservableObject {
 
     private func stopAllSubscriptions(reason: String) {
         appendLog("subscriptions stop reason=\(reason) scene=\(currentScenePhaseLabel)")
-        for workerID in Self.workerDefinitions.map(\.0) {
+        for workerID in workerIDs {
             stopWorkerSubscription(id: workerID, reason: reason)
         }
     }
@@ -471,7 +579,7 @@ final class SubscriptionProbeStore: ObservableObject {
     }
 
     private func refreshWorkerSnapshots() {
-        workerSnapshots = Self.workerDefinitions.compactMap { id, _ in
+        workerSnapshots = workerIDs.compactMap { id in
             guard let worker = workers[id] else { return nil }
             return WorkerSnapshot(
                 id: worker.id,
@@ -523,6 +631,23 @@ final class SubscriptionProbeStore: ObservableObject {
                 }
             }
         }
+    }
+
+    private func runStressRecoveryAttempt(index: Int) async {
+        if index > 0 {
+            let delay = UInt64(index) * 90_000_000
+            try? await Task.sleep(nanoseconds: delay)
+        }
+        stopAllSubscriptions(reason: "stress-stop-\(index)")
+        await runForegroundRecovery(reason: "stress-\(index)")
+    }
+
+    private static func makeWorkerIDs(count: Int) -> [String] {
+        (0..<count).map { "subscription-\($0 + 1)" }
+    }
+
+    private static func workerLabel(for index: Int) -> String {
+        "service-\(index + 1)"
     }
 }
 

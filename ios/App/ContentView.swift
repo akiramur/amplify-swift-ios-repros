@@ -77,6 +77,65 @@ struct ContentView: View {
                         .buttonStyle(.borderedProminent)
                     }
 
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("Stress Mode")
+                                .font(.headline)
+                            Spacer()
+                            if store.isStressRunInFlight {
+                                Text("running")
+                                    .font(.caption.monospaced().weight(.semibold))
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .background(Color.orange.opacity(0.18))
+                                    .foregroundStyle(.orange)
+                                    .clipShape(Capsule())
+                            }
+                        }
+
+                        Stepper("Workers: \(store.stressConfig.workerCount)", value: Binding(
+                            get: { store.stressConfig.workerCount },
+                            set: { store.setWorkerCount($0) }
+                        ), in: 1...12)
+
+                        Stepper("Recovery bursts: \(store.stressConfig.recoveryBurstCount)", value: Binding(
+                            get: { store.stressConfig.recoveryBurstCount },
+                            set: { store.setRecoveryBurstCount($0) }
+                        ), in: 1...10)
+
+                        Stepper("Restart jitter: \(store.stressConfig.restartJitterMilliseconds) ms", value: Binding(
+                            get: { store.stressConfig.restartJitterMilliseconds },
+                            set: { store.setRestartJitterMilliseconds($0) }
+                        ), in: 0...1000, step: 50)
+
+                        Stepper("Query burst: \(store.stressConfig.queryBurstCount)", value: Binding(
+                            get: { store.stressConfig.queryBurstCount },
+                            set: { store.setQueryBurstCount($0) }
+                        ), in: 1...6)
+
+                        Stepper("Mutation burst: \(store.stressConfig.mutationBurstCount)", value: Binding(
+                            get: { store.stressConfig.mutationBurstCount },
+                            set: { store.setMutationBurstCount($0) }
+                        ), in: 0...6)
+
+                        HStack(spacing: 12) {
+                            Button("Run Stress Burst") {
+                                Task { await store.runStressRecoveryBurst() }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(store.isStressRunInFlight || !store.isSignedIn)
+
+                            Button("Restart With Settings") {
+                                Task { await store.restartSubscription(reason: "stress-config") }
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(store.isStressRunInFlight || !store.isSignedIn)
+                        }
+                    }
+                    .padding(12)
+                    .background(Color(uiColor: .secondarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Subscription Workers")
                             .font(.headline)
